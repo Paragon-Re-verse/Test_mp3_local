@@ -2,8 +2,37 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import '../models/lan_device.dart';
 import 'lan_protocol.dart';
+
+/// Real Android hardware silently drops incoming broadcast/multicast UDP
+/// datagrams while the WiFi radio is in power-save mode unless the app
+/// holds a WifiManager.MulticastLock (acquired natively - see
+/// MainActivity.kt). Without it, discovery works in emulators/desktop but
+/// finds nothing on a real phone. This is a no-op (and safely ignored) on
+/// platforms other than Android.
+const _multicastLockChannel = MethodChannel('nocturne/multicast_lock');
+
+Future<void> _acquireMulticastLock() async {
+  if (!Platform.isAndroid) return;
+  try {
+    await _multicastLockChannel.invokeMethod('acquire');
+  } catch (_) {
+    // Best-effort: discovery still works via emulators/desktop and on
+    // devices where the radio doesn't filter it.
+  }
+}
+
+Future<void> _releaseMulticastLock() async {
+  if (!Platform.isAndroid) return;
+  try {
+    await _multicastLockChannel.invokeMethod('release');
+  } catch (_) {
+    // Best-effort.
+  }
+}
 
 /// UDP broadcast discovery: announces this device and listens for others.
 class LanDiscovery {
@@ -30,6 +59,7 @@ class LanDiscovery {
   Stream<List<LanDevice>> get devices => _controller.stream;
 
   Future<void> start() async {
+    await _acquireMulticastLock();
     // reuseAddress/reusePort: lets more than one instance on the same host
     // receive broadcast beacons (harmless in production - a real device
     // only ever runs one instance - and required for tests, which run
@@ -108,6 +138,7 @@ class LanDiscovery {
     _socket?.close();
     _socket = null;
     _devices.clear();
+    await _releaseMulticastLock();
   }
 
   void dispose() {

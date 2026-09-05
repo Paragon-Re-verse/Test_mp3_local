@@ -123,7 +123,7 @@ class _HueTriPicker extends StatelessWidget {
   void _handleRing(Offset local, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
     final d = local - c;
-    final deg = (math.atan2(d.dy, d.dx) * 180 / math.pi + 450) % 360;
+    final deg = (math.atan2(d.dy, d.dx) * 180 / math.pi + 360) % 360;
     state.setHueFromAngle(deg);
   }
 
@@ -173,7 +173,7 @@ class _HueTriPicker extends StatelessWidget {
                 boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 34, offset: Offset(0, 12))],
               ),
               child: Align(
-                alignment: Alignment(math.cos((state.pickerHue - 90) * math.pi / 180), math.sin((state.pickerHue - 90) * math.pi / 180)),
+                alignment: Alignment(math.cos(state.pickerHue * math.pi / 180), math.sin(state.pickerHue * math.pi / 180)),
                 child: Container(
                   width: 16,
                   height: 28,

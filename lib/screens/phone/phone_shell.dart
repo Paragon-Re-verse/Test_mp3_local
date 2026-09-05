@@ -84,31 +84,34 @@ class _BottomNav extends StatelessWidget {
       (AppScreen.settings, PhosphorIconsRegular.slidersHorizontal, state.L.settings),
     ];
     final active = state.screen == AppScreen.song ? AppScreen.library : state.screen;
-    return Container(
-      decoration: BoxDecoration(color: p.surface, border: Border(top: BorderSide(color: p.line))),
-      child: Row(
-        children: items.map((it) {
-          final isActive = it.$1 == active;
-          return Expanded(
-            child: InkWell(
-              onTap: () => state.nav(it.$1),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10, bottom: 12),
-                child: Column(
-                  children: [
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 220),
-                      style: TextStyle(color: isActive ? p.accent : p.muted),
-                      child: Icon(it.$2, size: 19, color: isActive ? p.accent : p.muted),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(it.$3, style: TextStyle(fontSize: 10.5, color: isActive ? p.accent : p.muted)),
-                  ],
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(color: p.surface, border: Border(top: BorderSide(color: p.line))),
+        child: Row(
+          children: items.map((it) {
+            final isActive = it.$1 == active;
+            return Expanded(
+              child: InkWell(
+                onTap: () => state.nav(it.$1),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 12),
+                  child: Column(
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 220),
+                        style: TextStyle(color: isActive ? p.accent : p.muted),
+                        child: Icon(it.$2, size: 19, color: isActive ? p.accent : p.muted),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(it.$3, style: TextStyle(fontSize: 10.5, color: isActive ? p.accent : p.muted)),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

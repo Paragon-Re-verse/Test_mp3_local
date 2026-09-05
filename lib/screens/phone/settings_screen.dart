@@ -184,7 +184,8 @@ class SettingsScreen extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: TextField(
-                                  key: ValueKey('newtag-${state.newTagDraft.length}'),
+                                  controller: TextEditingController(text: state.newTagDraft)
+                                    ..selection = TextSelection.collapsed(offset: state.newTagDraft.length),
                                   onChanged: state.setNewTagDraft,
                                   onSubmitted: (_) => state.addTag(),
                                   style: TextStyle(fontSize: 12.5, color: p.text),
