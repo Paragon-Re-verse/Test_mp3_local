@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// `flutter test` runs with no fonts loaded by default, so without this,
 /// every golden screenshot renders Cyrillic text and Phosphor icons as
 /// empty tofu boxes. Loading every font declared in FontManifest.json
-/// (our bundled Inter/RobotoMono plus phosphor_flutter's icon font) makes
+/// (our bundled Inter/RobotoMono plus phosphoricons_flutter's icon font) makes
 /// goldens actually show what the app renders.
 Future<void> loadAppFonts() async {
   TestWidgetsFlutterBinding.ensureInitialized();
