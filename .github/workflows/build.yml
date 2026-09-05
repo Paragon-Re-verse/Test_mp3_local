@@ -54,3 +54,40 @@ jobs:
           name: nocturne-player-windows-exe
           path: build/windows/x64/runner/Release/**
           if-no-files-found: error
+
+  publish-release:
+    name: Publish test-build release
+    needs: [build-android, build-windows]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nocturne-player-android-apk
+          path: dist/android
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: nocturne-player-windows-exe
+          path: dist/windows
+
+      - name: Package release assets
+        run: |
+          mkdir -p dist/release
+          cp dist/android/*.apk dist/release/nocturne-player.apk
+          cd dist/windows && zip -r ../release/nocturne-player-windows.zip . && cd -
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build
+          name: Test build (latest)
+          prerelease: true
+          body: >-
+            Automatically rebuilt from the latest push to
+            `${{ github.ref_name }}` (${{ github.sha }}). Debug-signed test
+            binaries, not for production/store distribution.
+          files: |
+            dist/release/nocturne-player.apk
+            dist/release/nocturne-player-windows.zip

@@ -4,6 +4,15 @@ A local-network MP3 player for phone (Android) and PC (Windows), built from
 the Claude Design prototype in `../project/MP3 Local Player.dc.html`. Same
 Flutter codebase on both platforms — no external servers, ever.
 
+## Download (test builds)
+
+Rebuilt automatically by [GitHub Actions](.github/workflows/build.yml) on
+every push — always the latest commit, debug-signed, not for store
+distribution.
+
+- **Android**: [nocturne-player.apk](https://github.com/Paragon-Re-verse/Test_mp3_local/releases/download/test-build/nocturne-player.apk)
+- **Windows**: [nocturne-player-windows.zip](https://github.com/Paragon-Re-verse/Test_mp3_local/releases/download/test-build/nocturne-player-windows.zip) — unzip and run `nocturne_player.exe` from inside the extracted folder (it needs the DLLs and `data/` folder next to it).
+
 ## What's real vs. what's a placeholder
 
 Everything below is a real, working implementation, not a mock:
