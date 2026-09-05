@@ -178,28 +178,7 @@ class SettingsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         ...state.allTags.map((t) => _TagRow(name: t)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: TextEditingController(text: state.newTagDraft)
-                                    ..selection = TextSelection.collapsed(offset: state.newTagDraft.length),
-                                  onChanged: state.setNewTagDraft,
-                                  onSubmitted: (_) => state.addTag(),
-                                  style: TextStyle(fontSize: 12.5, color: p.text),
-                                  decoration: InputDecoration(border: InputBorder.none, isDense: true, hintText: L.newTag, hintStyle: TextStyle(color: p.muted)),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: state.addTag,
-                                style: TextButton.styleFrom(foregroundColor: p.accent),
-                                child: Text(L.add, style: const TextStyle(fontSize: 11.5)),
-                              ),
-                            ],
-                          ),
-                        ),
+                        const _NewTagField(),
                       ],
                     ),
                   ),
@@ -318,6 +297,66 @@ class _Switch extends StatelessWidget {
   }
 }
 
+/// A `TextField` whose `controller` is a fresh `TextEditingController`
+/// built inline on every rebuild (as this file used to do for both the
+/// new-tag and rename fields) fights Android's IME: every keystroke's
+/// `onChanged` triggers `notifyListeners()`, which rebuilds this widget
+/// and hands the field a brand-new controller instance mid-composition,
+/// so the input connection resets and typed/predictive-text input gets
+/// dropped. Both fields below now own a `TextEditingController` created
+/// once in `initState` so it survives rebuilds; only its *initial* text
+/// comes from state.
+class _NewTagField extends StatefulWidget {
+  const _NewTagField();
+
+  @override
+  State<_NewTagField> createState() => _NewTagFieldState();
+}
+
+class _NewTagFieldState extends State<_NewTagField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit(PlayerAppState state) {
+    state.setNewTagDraft(_controller.text);
+    state.addTag();
+    _controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<PlayerAppState>();
+    final p = Theme.of(context).extension<NocturnePalette>()!;
+    final L = state.L;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onChanged: state.setNewTagDraft,
+              onSubmitted: (_) => _submit(state),
+              style: TextStyle(fontSize: 12.5, color: p.text),
+              decoration: InputDecoration(border: InputBorder.none, isDense: true, hintText: L.newTag, hintStyle: TextStyle(color: p.muted)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => _submit(state),
+            style: TextButton.styleFrom(foregroundColor: p.accent),
+            child: Text(L.add, style: const TextStyle(fontSize: 11.5)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TagRow extends StatelessWidget {
   final String name;
   const _TagRow({required this.name});
@@ -333,32 +372,7 @@ class _TagRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line))),
       child: renaming
-          ? Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    autofocus: true,
-                    controller: TextEditingController(text: state.renameValue)..selection = TextSelection.collapsed(offset: state.renameValue.length),
-                    onChanged: state.setRenameValue,
-                    onSubmitted: (_) => state.commitRenameTag(),
-                    style: TextStyle(fontSize: 12, color: p.text),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      filled: true,
-                      fillColor: p.surface,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: p.accent)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: state.commitRenameTag,
-                  style: TextButton.styleFrom(backgroundColor: p.accent, foregroundColor: p.bg),
-                  child: Text(Strings.forLang(state.lang).save, style: const TextStyle(fontSize: 11.5)),
-                ),
-              ],
-            )
+          ? _TagRenameField(key: ValueKey('rename-$name'), initialValue: state.renameValue)
           : Row(
               children: [
                 Expanded(child: Text(name, style: TextStyle(fontSize: 12.5, color: p.text))),
@@ -369,6 +383,57 @@ class _TagRow extends StatelessWidget {
                 InkWell(onTap: () => state.deleteTag(name), child: Icon(PhosphorIconsRegular.trash, size: 13, color: p.muted)),
               ],
             ),
+    );
+  }
+}
+
+class _TagRenameField extends StatefulWidget {
+  final String initialValue;
+  const _TagRenameField({super.key, required this.initialValue});
+
+  @override
+  State<_TagRenameField> createState() => _TagRenameFieldState();
+}
+
+class _TagRenameFieldState extends State<_TagRenameField> {
+  late final _controller = TextEditingController(text: widget.initialValue)
+    ..selection = TextSelection.collapsed(offset: widget.initialValue.length);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<PlayerAppState>();
+    final p = Theme.of(context).extension<NocturnePalette>()!;
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            autofocus: true,
+            controller: _controller,
+            onChanged: state.setRenameValue,
+            onSubmitted: (_) => state.commitRenameTag(),
+            style: TextStyle(fontSize: 12, color: p.text),
+            decoration: InputDecoration(
+              isDense: true,
+              filled: true,
+              fillColor: p.surface,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: p.accent)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        TextButton(
+          onPressed: state.commitRenameTag,
+          style: TextButton.styleFrom(backgroundColor: p.accent, foregroundColor: p.bg),
+          child: Text(Strings.forLang(state.lang).save, style: const TextStyle(fontSize: 11.5)),
+        ),
+      ],
     );
   }
 }
