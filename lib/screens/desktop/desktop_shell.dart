@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../models/track.dart';
 import '../../state/app_screen.dart';
@@ -10,13 +11,20 @@ import '../../widgets/seek_bar.dart';
 import '../../widgets/striped_cover.dart';
 import '../../widgets/toast_overlay.dart';
 import '../phone/onboarding_screen.dart';
+import '../phone/queue_screen.dart';
+import '../phone/transfer_screen.dart';
 import '../shared/incoming_pair_dialog.dart';
 import '../shared/sync_dialog.dart';
 import '../shared/track_edit_sheet.dart';
+import 'desktop_settings_screen.dart';
 
-/// Windows build: three-pane layout - library list (1/3), now-playing
-/// centre, with the PC/Phone output switch and tag editor gear top-right.
-/// Matches prototype panel 1b.
+/// Windows build: a 78px icon rail (Library/Queue/Transfer/Settings - same
+/// four sections as the phone's bottom nav) plus the three-pane
+/// library/now-playing layout for the Library tab. Queue and Transfer reuse
+/// the phone screens verbatim (they're plain content, not phone chrome);
+/// Settings gets its own two-column desktop layout. Matches prototype
+/// panel 1b, extended to prototype "MP3 Player PC" (full PC parity with
+/// the phone client).
 class DesktopShell extends StatelessWidget {
   const DesktopShell({super.key});
 
@@ -30,6 +38,28 @@ class DesktopShell extends StatelessWidget {
     }
 
     final track = state.current;
+    final isLibrary = state.screen == AppScreen.library || state.screen == AppScreen.song;
+
+    Widget body;
+    switch (state.screen) {
+      case AppScreen.queue:
+        body = const QueueScreen();
+      case AppScreen.transfer:
+        body = const TransferScreen();
+      case AppScreen.settings:
+        body = const DesktopSettingsScreen();
+      case AppScreen.library:
+      case AppScreen.song:
+      case AppScreen.onboard:
+        body = Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(width: 320, child: _LibraryPane()),
+            VerticalDivider(width: 1, color: p.line),
+            Expanded(child: _NowPlayingPane(track: track)),
+          ],
+        );
+    }
 
     return Scaffold(
       body: ToastOverlay(
@@ -43,13 +73,13 @@ class DesktopShell extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(width: 320, child: _LibraryPane()),
+                      _IconRail(state: state, p: p),
                       VerticalDivider(width: 1, color: p.line),
-                      Expanded(child: _NowPlayingPane(track: track)),
+                      Expanded(child: body),
                     ],
                   ),
                 ),
-                _StatusBar(),
+                if (isLibrary) _StatusBar(),
               ],
             ),
             if (state.pendingIncomingPair != null) const IncomingPairDialog(),
@@ -62,29 +92,162 @@ class DesktopShell extends StatelessWidget {
   }
 }
 
-class _TitleBar extends StatelessWidget {
+/// The 78px vertical tab rail (Library/Queue/Transfer/Settings), matching
+/// the PC prototype's left rail 1:1 with the phone's bottom nav sections.
+class _IconRail extends StatelessWidget {
+  final PlayerAppState state;
+  final NocturnePalette p;
+  const _IconRail({required this.state, required this.p});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (AppScreen.library, PhosphorIconsRegular.musicNotesSimple, state.L.library),
+      (AppScreen.queue, PhosphorIconsRegular.listNumbers, state.L.queue),
+      (AppScreen.transfer, PhosphorIconsRegular.wifiHigh, state.L.transfer),
+      (AppScreen.settings, PhosphorIconsRegular.slidersHorizontal, state.L.settings),
+    ];
+    final active = state.screen == AppScreen.song ? AppScreen.library : state.screen;
+    return Container(
+      width: 78,
+      color: p.surface,
+      child: Column(
+        children: [
+          const SizedBox(height: 14),
+          Icon(PhosphorIconsRegular.vinylRecord, size: 19, color: p.accent),
+          const SizedBox(height: 12),
+          ...items.map((it) {
+            final isActive = it.$1 == active;
+            return InkWell(
+              onTap: () => state.nav(it.$1),
+              child: Stack(
+                children: [
+                  if (isActive)
+                    Positioned(
+                      left: 0,
+                      top: 6,
+                      bottom: 6,
+                      child: Container(width: 2, decoration: BoxDecoration(color: p.accent, borderRadius: const BorderRadius.horizontal(right: Radius.circular(2)))),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    child: Column(
+                      children: [
+                        Icon(it.$2, size: 19, color: isActive ? p.accent : p.muted),
+                        const SizedBox(height: 5),
+                        Text(it.$3, style: TextStyle(fontSize: 9.5, color: isActive ? p.accent : p.muted)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const Spacer(),
+          if (state.paired != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: p.accent, boxShadow: [BoxShadow(color: p.accentDim, blurRadius: 0, spreadRadius: 4)]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Real, working window chrome: the OS title bar is hidden (see
+/// `main.dart`'s `TitleBarStyle.hidden` setup), so this is the only title
+/// bar the user sees. `DragToMoveArea` restores drag-to-move over the
+/// blank part of the bar; the three buttons actually minimize/maximize/
+/// close via `window_manager` instead of just sitting there as icons.
+class _TitleBar extends StatefulWidget {
   final String pcName;
   const _TitleBar({required this.pcName});
+
+  @override
+  State<_TitleBar> createState() => _TitleBarState();
+}
+
+class _TitleBarState extends State<_TitleBar> with WindowListener {
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    // Best-effort: no window_manager platform channel is registered under
+    // flutter test (e.g. the golden tests instantiate DesktopShell without
+    // going through main()'s windowManager.ensureInitialized()), so this
+    // must not throw an unhandled async error in that environment.
+    windowManager.isMaximized().then((v) {
+      if (mounted) setState(() => _maximized = v);
+    }).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() => setState(() => _maximized = true);
+
+  @override
+  void onWindowUnmaximize() => setState(() => _maximized = false);
+
+  void _toggleMaximize() => _maximized ? windowManager.unmaximize() : windowManager.maximize();
+
   @override
   Widget build(BuildContext context) {
     final p = Theme.of(context).extension<NocturnePalette>()!;
     return Container(
       height: 38,
-      padding: const EdgeInsets.only(left: 14),
       decoration: BoxDecoration(color: p.surface, border: Border(bottom: BorderSide(color: p.line))),
       child: Row(
         children: [
-          Icon(PhosphorIconsRegular.vinylRecord, size: 15, color: p.accent),
-          const SizedBox(width: 10),
-          Text('Локальный плеер', style: TextStyle(fontSize: 12, color: p.text)),
-          const SizedBox(width: 8),
-          Text('— $pcName', style: TextStyle(fontSize: 10.5, color: p.muted, fontFamily: kMonoFamily)),
-          const Spacer(),
-          SizedBox(width: 46, height: 38, child: Icon(PhosphorIconsRegular.minus, size: 13, color: p.muted)),
-          SizedBox(width: 46, height: 38, child: Icon(PhosphorIconsRegular.square, size: 11, color: p.muted)),
-          SizedBox(width: 46, height: 38, child: Icon(PhosphorIconsRegular.x, size: 13, color: p.muted)),
+          Expanded(
+            child: DragToMoveArea(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 14),
+                child: Row(
+                  children: [
+                    Icon(PhosphorIconsRegular.vinylRecord, size: 15, color: p.accent),
+                    const SizedBox(width: 10),
+                    Text('Локальный плеер', style: TextStyle(fontSize: 12, color: p.text)),
+                    const SizedBox(width: 8),
+                    Text('— ${widget.pcName}', style: TextStyle(fontSize: 10.5, color: p.muted, fontFamily: kMonoFamily)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _TitleBarButton(icon: PhosphorIconsRegular.minus, onTap: windowManager.minimize, p: p),
+          _TitleBarButton(icon: PhosphorIconsRegular.square, onTap: _toggleMaximize, p: p),
+          _TitleBarButton(icon: PhosphorIconsRegular.x, onTap: windowManager.close, p: p, closeHover: true),
         ],
       ),
+    );
+  }
+}
+
+class _TitleBarButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final NocturnePalette p;
+  final bool closeHover;
+  const _TitleBarButton({required this.icon, required this.onTap, required this.p, this.closeHover = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      hoverColor: closeHover ? Colors.red.withValues(alpha: 0.85) : p.surface2,
+      child: SizedBox(width: 46, height: 38, child: Icon(icon, size: icon == PhosphorIconsRegular.square ? 11 : 13, color: p.muted)),
     );
   }
 }
@@ -216,7 +379,7 @@ class _NowPlayingPane extends StatelessWidget {
           right: 18,
           child: Row(
             children: [
-              _OutputSwitch(state: state, p: p),
+              const OutputSwitch(),
               const SizedBox(width: 10),
               InkWell(
                 onTap: () => state.openEdit(track!.id),
@@ -292,13 +455,16 @@ class _NowPlayingPane extends StatelessWidget {
   }
 }
 
-class _OutputSwitch extends StatelessWidget {
-  final PlayerAppState state;
-  final NocturnePalette p;
-  const _OutputSwitch({required this.state, required this.p});
+/// The PC/Phone output pill. Also embeddable stand-alone (no required
+/// params - reads state via Provider) so it can be reused verbatim in
+/// DesktopSettingsScreen's Output section, not just the now-playing pane.
+class OutputSwitch extends StatelessWidget {
+  const OutputSwitch({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<PlayerAppState>();
+    final p = Theme.of(context).extension<NocturnePalette>()!;
     final isPhone = state.output == AudioOutput.peer;
     return Container(
       width: 186,

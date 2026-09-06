@@ -104,7 +104,10 @@ class Strings {
       addAll,
       up,
       down,
-      remove;
+      remove,
+      screenMode,
+      modeNormal,
+      modeFull;
 
   const Strings({
     required this.library,
@@ -208,6 +211,9 @@ class Strings {
     required this.up,
     required this.down,
     required this.remove,
+    required this.screenMode,
+    required this.modeNormal,
+    required this.modeFull,
   });
 
   static const ru = Strings(
@@ -239,6 +245,7 @@ class Strings {
     saved: 'Сохранено', sent: 'Отправлено на', secure: 'HTTPS, самоподписанный сертификат', offline: 'Сеть отключена',
     noTracks: 'Ничего не найдено', of: 'из', tagsOn: 'Теги трека', shuffle: 'Перемешать', repeat: 'Повтор',
     queueEmpty: 'Очередь пуста', addAll: 'Добавить всю библиотеку', up: 'Выше', down: 'Ниже', remove: 'Убрать',
+    screenMode: 'Экран песни', modeNormal: 'Обычный', modeFull: 'Полный',
   );
 
   static const en = Strings(
@@ -270,6 +277,7 @@ class Strings {
     saved: 'Saved', sent: 'Sent to', secure: 'HTTPS, self-signed certificate', offline: 'Network off',
     noTracks: 'Nothing found', of: 'of', tagsOn: 'Track tags', shuffle: 'Shuffle', repeat: 'Repeat',
     queueEmpty: 'Queue is empty', addAll: 'Add whole library', up: 'Up', down: 'Down', remove: 'Remove',
+    screenMode: 'Song screen', modeNormal: 'Normal', modeFull: 'Full',
   );
 
   static Strings forLang(AppLang lang) => lang == AppLang.ru ? ru : en;

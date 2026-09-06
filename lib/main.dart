@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'audio/media_kit_playback_engine.dart';
 import 'data/app_store.dart';
@@ -18,6 +19,26 @@ void main() async {
 
   final store = await AppStore.load();
   final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
+  if (isDesktop) {
+    // Hide the OS-drawn title bar so desktop_shell.dart's own _TitleBar is
+    // the only one the user sees, instead of both stacked on top of each
+    // other. windowManager still handles drag/resize/snap/shadow natively.
+    await windowManager.ensureInitialized();
+    await windowManager.waitUntilReadyToShow(
+      const WindowOptions(
+        size: Size(1180, 720),
+        minimumSize: Size(760, 480),
+        center: true,
+        titleBarStyle: TitleBarStyle.hidden,
+      ),
+      () async {
+        await windowManager.show();
+        await windowManager.focus();
+      },
+    );
+  }
+
   final library = LibraryRepository(store);
 
   late PlayerAppState state;

@@ -18,6 +18,18 @@ class SongScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<PlayerAppState>();
+    final track = state.current;
+    if (track == null) return const SizedBox.shrink();
+    return state.fullscreenSongMode ? const _FullBleedSongScreen() : const _NormalSongScreen();
+  }
+}
+
+class _NormalSongScreen extends StatelessWidget {
+  const _NormalSongScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<PlayerAppState>();
     final p = Theme.of(context).extension<NocturnePalette>()!;
     final L = state.L;
     final track = state.current;
@@ -143,6 +155,145 @@ class SongScreen extends StatelessWidget {
         height: 34,
         decoration: BoxDecoration(border: Border.all(color: p.line), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, size: 17, color: p.text),
+      ),
+    );
+  }
+}
+
+/// "Full" screen mode: the cover fills the entire screen edge-to-edge with
+/// a dark gradient scrim for legibility, controls overlaid directly on top
+/// (matches the "обложка на всю площадь" design variant). Toggled in
+/// Settings > General > Song screen. Text stays light regardless of the
+/// app's own theme/accent, since it always sits on a dark image scrim.
+class _FullBleedSongScreen extends StatelessWidget {
+  const _FullBleedSongScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<PlayerAppState>();
+    final p = Theme.of(context).extension<NocturnePalette>()!;
+    final track = state.current;
+    if (track == null) return const SizedBox.shrink();
+
+    final total = Duration(seconds: track.durationSeconds);
+    final progress = total.inMilliseconds == 0 ? 0.0 : state.position.inMilliseconds / total.inMilliseconds;
+
+    return Positioned.fill(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          StripedCover(hue: track.coverHue, radius: 0, imagePath: track.customCoverPath),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0, 0.34, 0.78],
+                colors: [
+                  Colors.black.withValues(alpha: 0.55),
+                  Colors.black.withValues(alpha: 0),
+                  Colors.black.withValues(alpha: 0.88),
+                ],
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      _ghostBtn(PhosphorIconsRegular.caretDown, state.closeSong),
+                      const Spacer(),
+                      _ghostBtn(PhosphorIconsRegular.gearSix, () => state.openEdit(track.id)),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 26),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${(state.curIndex + 1).toString().padLeft(2, '0')} / ${state.queueIds.length} · ${track.album}',
+                        style: TextStyle(fontSize: 10, letterSpacing: 2, color: p.accent, fontFamily: kMonoFamily),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(track.title, style: const TextStyle(fontSize: 27, color: Colors.white, letterSpacing: -0.3)),
+                      const SizedBox(height: 2),
+                      Text(track.artist, style: const TextStyle(fontSize: 13, color: Color(0xFFCFD3E5))),
+                      const SizedBox(height: 14),
+                      SeekBar(progress: progress.clamp(0, 1), onSeek: state.seekFraction, thumbSize: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(Track.formatDuration(state.position.inSeconds),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF9397AB), fontFamily: kMonoFamily)),
+                          Text(Track.formatDuration(track.durationSeconds),
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF9397AB), fontFamily: kMonoFamily)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Icon(PhosphorIconsRegular.shuffle, size: 17, color: Colors.white70),
+                          InkWell(onTap: state.prev, child: const Icon(PhosphorIconsFill.skipBack, size: 21, color: Colors.white)),
+                          InkWell(
+                            onTap: state.toggleQ,
+                            child: Container(
+                              width: 58,
+                              height: 58,
+                              decoration: BoxDecoration(shape: BoxShape.circle, color: p.accent),
+                              child: Icon(state.playing ? PhosphorIconsFill.pause : PhosphorIconsFill.play, size: 24, color: p.bg),
+                            ),
+                          ),
+                          InkWell(onTap: state.next, child: const Icon(PhosphorIconsFill.skipForward, size: 21, color: Colors.white)),
+                          const Icon(PhosphorIconsRegular.repeat, size: 17, color: Colors.white70),
+                        ],
+                      ),
+                      if (state.output == AudioOutput.peer)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: p.accent),
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.black.withValues(alpha: 0.35),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(PhosphorIconsRegular.deviceMobileSpeaker, size: 16, color: p.accent),
+                                const SizedBox(width: 9),
+                                Text('${state.L.playingOnPhone} · ${state.paired?.name ?? ''}', style: TextStyle(fontSize: 12, color: p.accent)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ghostBtn(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(border: Border.all(color: Colors.white.withValues(alpha: 0.3)), borderRadius: BorderRadius.circular(8)),
+        child: Icon(icon, size: 15, color: Colors.white),
       ),
     );
   }

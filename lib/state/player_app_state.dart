@@ -43,6 +43,7 @@ class PlayerAppState extends ChangeNotifier {
   bool transcode = true;
   String deviceName = '';
   bool netOn = true;
+  bool fullscreenSongMode = false;
   List<String> allTags = [];
 
   // ---- library ----
@@ -122,6 +123,7 @@ class PlayerAppState extends ChangeNotifier {
     transcode = await store.transcode;
     deviceName = await store.deviceName;
     netOn = await store.netOn;
+    fullscreenSongMode = await store.fullscreenSongMode;
     allTags = await store.allTags;
     dontAskDeviceIds = await store.dontAskDeviceIds;
 
@@ -683,6 +685,12 @@ class PlayerAppState extends ChangeNotifier {
   Future<void> setDeviceName(String v) async {
     deviceName = v;
     await store.setDeviceName(v);
+    notifyListeners();
+  }
+
+  Future<void> setFullscreenSongMode(bool v) async {
+    fullscreenSongMode = v;
+    await store.setFullscreenSongMode(v);
     notifyListeners();
   }
 

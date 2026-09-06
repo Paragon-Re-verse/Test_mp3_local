@@ -39,9 +39,14 @@ Everything below is a real, working implementation, not a mock:
 - **UI**: every screen from the prototype (onboarding, library w/
   search+sort+tag filters, queue w/ hold-to-reorder, device
   discovery/pairing, settings incl. the custom hue-ring/triangle colour
-  picker, full-screen song view, Windows 3-pane layout with the PC/Phone
-  output switch) — see `test/widgets/goldens/*.png` for rendered
-  screenshots of each.
+  picker, full-screen song view with a "normal vs. full-bleed cover" mode
+  toggle) on phone, and full parity on Windows: a Library/Queue/Transfer/
+  Settings icon rail (not just the now-playing pane), a real frameless
+  title bar (`window_manager`) with a working minimize/maximize/close and
+  drag-to-move instead of the OS chrome, and a dedicated Settings screen
+  with its own PC/Phone output switch — see `test/widgets/goldens/*.png`
+  for rendered screenshots (phone ones; the desktop goldens predate the
+  icon-rail redesign and need re-recording, see Testing below).
 
 ### Known simplifications (documented trade-offs, not bugs)
 
@@ -89,3 +94,39 @@ flutter test --update-goldens  # after an intentional visual change
 exercise real sockets (loopback only) and need `HttpOverrides.global = null`
 to opt out of `flutter_test`'s default network-blocking sandbox — see the
 comments in those files.
+
+The desktop golden tests (`test/widgets/desktop_shell_golden_test.dart`)
+predate the icon-rail redesign and will need `flutter test --update-goldens`
+run against the new layout before they're meaningful again.
+
+## LAN pairing on real devices
+
+The HTTPS control channel, self-signed cert generation/pinning and UDP
+discovery beacon are real and unit/integration-tested (see
+`test/network/lan_pairing_test.dart`), but that test runs two
+`NetworkService` instances in one process over loopback — it has never been
+exercised against two actual separate devices on a real Wi-Fi network. To
+try that for real:
+
+1. Build both: grab `nocturne-player.apk` and `nocturne-player-windows.zip`
+   from the [Download](#download-test-builds) section above (or
+   `flutter build apk` / `flutter build windows` locally), install the APK
+   on a phone and unzip+run the Windows build on a PC.
+2. Put both devices on the **same Wi-Fi network/subnet** (a phone on
+   mobile data, a VPN, or an isolated guest Wi-Fi won't see the UDP
+   broadcast beacon).
+3. On first launch, **allow the app through Windows Defender Firewall**
+   if prompted — otherwise inbound UDP discovery/HTTPS control traffic to
+   the PC gets silently dropped and the phone will never see it in Transfer.
+4. Open the Transfer tab on both; they should discover each other within
+   a couple of seconds (`LanProtocol.beaconInterval`) and let you pair.
+5. Once paired, try the PC/Phone output switch (now-playing pane or
+   Settings > Output on PC) to hand playback between them, and edit a
+   track's tags to trigger the sync prompt.
+
+If discovery finds nothing: check step 2/3 first (by far the most common
+real-world cause), then confirm both devices' local IPs are actually on
+the same subnet (`ipconfig` / `ip addr`) — router client-isolation ("AP
+isolation") on some Wi-Fi APs blocks device-to-device broadcast entirely
+and needs to be turned off on the router itself, which nothing in this
+codebase can work around.

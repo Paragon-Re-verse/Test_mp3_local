@@ -48,25 +48,64 @@ class PhoneShell extends StatelessWidget {
         body = const SizedBox.shrink();
     }
 
-    return Scaffold(
-      body: ToastOverlay(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(child: body),
-                _BottomNav(state: state, p: p),
-              ],
-            ),
-            if (state.screen == AppScreen.song) const SongScreen(),
-            if (state.colorPickerOpen) const ColorPickerScreen(),
-            if (state.editingTrack) const TrackEditSheet(),
-            if (state.syncPromptVisible) const SyncDialog(),
-            if (state.pendingIncomingPair != null) const IncomingPairDialog(),
-          ],
+    return PopScope(
+      canPop: _canPopToOs(state),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBack(state);
+      },
+      child: Scaffold(
+        body: ToastOverlay(
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  Expanded(child: body),
+                  _BottomNav(state: state, p: p),
+                ],
+              ),
+              if (state.screen == AppScreen.song) const SongScreen(),
+              if (state.colorPickerOpen) const ColorPickerScreen(),
+              if (state.editingTrack) const TrackEditSheet(),
+              if (state.syncPromptVisible) const SyncDialog(),
+              if (state.pendingIncomingPair != null) const IncomingPairDialog(),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Only let the OS handle back (minimize/close the app) once there's
+  /// nothing left in-app to back out of: no dialog/overlay open, not on
+  /// the full-screen song view, and already on the library tab.
+  bool _canPopToOs(PlayerAppState state) {
+    return state.pendingIncomingPair == null &&
+        !state.syncPromptVisible &&
+        !state.editingTrack &&
+        !state.colorPickerOpen &&
+        state.screen != AppScreen.song &&
+        state.screen == AppScreen.library;
+  }
+
+  /// Closes whatever's on top first (dialogs/overlays before the song
+  /// screen before tab navigation), mirroring the Stack's paint order in
+  /// build() above so back always dismisses the thing the user actually
+  /// sees on top.
+  void _handleBack(PlayerAppState state) {
+    if (state.pendingIncomingPair != null) {
+      state.answerIncomingPair(false);
+    } else if (state.syncPromptVisible) {
+      state.syncAnswer(false);
+    } else if (state.editingTrack) {
+      state.closeEdit();
+    } else if (state.colorPickerOpen) {
+      state.closeColorPicker();
+    } else if (state.screen == AppScreen.song) {
+      state.closeSong();
+    } else if (state.screen != AppScreen.library) {
+      state.nav(AppScreen.library);
+    }
   }
 }
 

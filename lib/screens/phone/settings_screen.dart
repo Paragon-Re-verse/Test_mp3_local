@@ -45,7 +45,7 @@ class SettingsScreen extends StatelessWidget {
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.only(right: 6),
-                          child: _SegButton(label: label, active: active, onTap: () => state.setThemeMode(m)),
+                          child: SegButton(label: label, active: active, onTap: () => state.setThemeMode(m)),
                         ),
                       );
                     }).toList(),
@@ -57,10 +57,10 @@ class SettingsScreen extends StatelessWidget {
                     decoration: BoxDecoration(border: Border.all(color: p.line), borderRadius: BorderRadius.circular(8)),
                     child: Column(
                       children: [
-                        _ColorRow(choice: AccentChoice.system, label: L.cSystem, swatch: const Color(0xFF9184D9)),
-                        _ColorRow(choice: AccentChoice.amber, label: L.cAmber, swatch: NocturnePalette.amber),
-                        _ColorRow(choice: AccentChoice.ubuntu, label: L.cUbuntu, swatch: NocturnePalette.ubuntu),
-                        _ColorRow(choice: AccentChoice.custom, label: L.cCustom, swatch: colorFromHex(state.customHex), isLast: true),
+                        ColorRow(choice: AccentChoice.system, label: L.cSystem, swatch: const Color(0xFF9184D9)),
+                        ColorRow(choice: AccentChoice.amber, label: L.cAmber, swatch: NocturnePalette.amber),
+                        ColorRow(choice: AccentChoice.ubuntu, label: L.cUbuntu, swatch: NocturnePalette.ubuntu),
+                        ColorRow(choice: AccentChoice.custom, label: L.cCustom, swatch: colorFromHex(state.customHex), isLast: true),
                       ],
                     ),
                   ),
@@ -89,9 +89,19 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: _SegButton(label: 'Русский', active: state.lang == AppLang.ru, onTap: () => state.setLang(AppLang.ru))),
+                      Expanded(child: SegButton(label: 'Русский', active: state.lang == AppLang.ru, onTap: () => state.setLang(AppLang.ru))),
                       const SizedBox(width: 6),
-                      Expanded(child: _SegButton(label: 'English', active: state.lang == AppLang.en, onTap: () => state.setLang(AppLang.en))),
+                      Expanded(child: SegButton(label: 'English', active: state.lang == AppLang.en, onTap: () => state.setLang(AppLang.en))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(L.screenMode, style: TextStyle(fontSize: 12.5, color: p.muted)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: SegButton(label: L.modeNormal, active: !state.fullscreenSongMode, onTap: () => state.setFullscreenSongMode(false))),
+                      const SizedBox(width: 6),
+                      Expanded(child: SegButton(label: L.modeFull, active: state.fullscreenSongMode, onTap: () => state.setFullscreenSongMode(true))),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -113,7 +123,7 @@ class SettingsScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          _Switch(on: state.transcode, p: p),
+                          SettingsSwitch(on: state.transcode, p: p),
                         ],
                       ),
                     ),
@@ -177,8 +187,8 @@ class SettingsScreen extends StatelessWidget {
                     decoration: BoxDecoration(border: Border.all(color: p.line), borderRadius: BorderRadius.circular(8)),
                     child: Column(
                       children: [
-                        ...state.allTags.map((t) => _TagRow(name: t)),
-                        const _NewTagField(),
+                        ...state.allTags.map((t) => TagRow(name: t)),
+                        const NewTagField(),
                       ],
                     ),
                   ),
@@ -212,11 +222,11 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _SegButton extends StatelessWidget {
+class SegButton extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _SegButton({required this.label, required this.active, required this.onTap});
+  const SegButton({required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -239,12 +249,12 @@ class _SegButton extends StatelessWidget {
   }
 }
 
-class _ColorRow extends StatelessWidget {
+class ColorRow extends StatelessWidget {
   final AccentChoice choice;
   final String label;
   final Color swatch;
   final bool isLast;
-  const _ColorRow({required this.choice, required this.label, required this.swatch, this.isLast = false});
+  const ColorRow({required this.choice, required this.label, required this.swatch, this.isLast = false});
 
   @override
   Widget build(BuildContext context) {
@@ -274,10 +284,10 @@ class _ColorRow extends StatelessWidget {
   }
 }
 
-class _Switch extends StatelessWidget {
+class SettingsSwitch extends StatelessWidget {
   final bool on;
   final NocturnePalette p;
-  const _Switch({required this.on, required this.p});
+  const SettingsSwitch({required this.on, required this.p});
 
   @override
   Widget build(BuildContext context) {
@@ -306,14 +316,14 @@ class _Switch extends StatelessWidget {
 /// dropped. Both fields below now own a `TextEditingController` created
 /// once in `initState` so it survives rebuilds; only its *initial* text
 /// comes from state.
-class _NewTagField extends StatefulWidget {
-  const _NewTagField();
+class NewTagField extends StatefulWidget {
+  const NewTagField();
 
   @override
-  State<_NewTagField> createState() => _NewTagFieldState();
+  State<NewTagField> createState() => NewTagFieldState();
 }
 
-class _NewTagFieldState extends State<_NewTagField> {
+class NewTagFieldState extends State<NewTagField> {
   final _controller = TextEditingController();
 
   @override
@@ -357,9 +367,9 @@ class _NewTagFieldState extends State<_NewTagField> {
   }
 }
 
-class _TagRow extends StatelessWidget {
+class TagRow extends StatelessWidget {
   final String name;
-  const _TagRow({required this.name});
+  const TagRow({required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +382,7 @@ class _TagRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(border: Border(bottom: BorderSide(color: p.line))),
       child: renaming
-          ? _TagRenameField(key: ValueKey('rename-$name'), initialValue: state.renameValue)
+          ? TagRenameField(key: ValueKey('rename-$name'), initialValue: state.renameValue)
           : Row(
               children: [
                 Expanded(child: Text(name, style: TextStyle(fontSize: 12.5, color: p.text))),
@@ -387,15 +397,15 @@ class _TagRow extends StatelessWidget {
   }
 }
 
-class _TagRenameField extends StatefulWidget {
+class TagRenameField extends StatefulWidget {
   final String initialValue;
-  const _TagRenameField({super.key, required this.initialValue});
+  const TagRenameField({super.key, required this.initialValue});
 
   @override
-  State<_TagRenameField> createState() => _TagRenameFieldState();
+  State<TagRenameField> createState() => TagRenameFieldState();
 }
 
-class _TagRenameFieldState extends State<_TagRenameField> {
+class TagRenameFieldState extends State<TagRenameField> {
   late final _controller = TextEditingController(text: widget.initialValue)
     ..selection = TextSelection.collapsed(offset: widget.initialValue.length);
 

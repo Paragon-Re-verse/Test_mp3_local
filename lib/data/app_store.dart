@@ -112,4 +112,7 @@ class AppStore {
 
   Future<bool> get netOn async => _get('netOn', true);
   Future<void> setNetOn(bool v) => _set('netOn', v);
+
+  Future<bool> get fullscreenSongMode async => _get('fullscreenSong', false);
+  Future<void> setFullscreenSongMode(bool v) => _set('fullscreenSong', v);
 }
